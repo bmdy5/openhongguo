@@ -1,6 +1,7 @@
 import {createHash,randomBytes,timingSafeEqual} from 'node:crypto';
 import {spawn as spawnProcess} from 'node:child_process';
 import {validProgress} from './history.mjs';
+import {resolveForPlayer,modelExpiry} from './playback.mjs';
 
 const PREFIX='/api/hongguo';
 const COOKIE='hongguo_session';
@@ -37,8 +38,8 @@ export function createApp({client,username,password,history,secure=true,allowedO
  }
  async function playback(id){
   const old=cache.get(id);if(old&&old.expiry>now())return old.value;
-  const value=await upstream(()=>client.resolvePlayback(id));
-  const expiry=Math.min(now()+60000,((value.playback.expires_at??(now()/1000+60))*1000)-5000);
+  const value=await upstream(()=>resolveForPlayer(client,id));
+  const expiry=modelExpiry(value.playback,now());
   if(cache.size>=64)cache.delete(cache.keys().next().value);cache.set(id,{value,expiry});return value;
  }
  function json(res,status,body){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body));}
