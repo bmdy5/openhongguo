@@ -11,7 +11,9 @@
 - `GET /api/hongguo/playback/:episode`：仅清晰度/编码/时长，不返回 CDN URL 或密钥。
 - `GET /api/hongguo/stream/:episode?quality=best&start=120`：ffmpeg 管道流，源端定位，原编码复制，不保存视频正文。分辨率优先、同分辨率码率优先。
 
-同一实例最多两路视频、8个待处理元数据请求，metadata 顺序访问来源；设备和60秒播放元数据缓存仅在内存，重启丢失。断连、20秒无数据、超时与退出均终止子进程。拒绝独立音轨或分段源，错误明确可见。
+同一实例最多两路视频、8个待处理元数据请求，metadata 顺序访问来源；设备和播放元数据仅在内存，重启丢失。已签发播放模型按其到期时间减5秒复用，最长15分钟；未知到期时间时仅保留60秒。断连、20秒无数据、超时与退出均终止子进程。拒绝独立音轨或分段源，错误明确可见。
+
+准备播放复用上游 [README「播放次数限制」](../README.md#播放次数限制) 与 `internal/cliapp/playback.go` 的已实现流程。仅 `resolvePlayback` 的 `ANONYMOUS_LIMITED` 会触发最多两次 SDK `resetDevice` 后重试；不会在搜索/目录、登录要求、验证码或真实 RATE_LIMITED 上这么做。登记与重试在同一个串行队列任务中执行，避免并发互相重置。上游维护者在 [Issue #2](https://github.com/beilunyang/openhongguo/issues/2) 也确认每台匿名设备通常只提供一次播放模型；SDK 本身把这一调用方责任留给客户端。
 
 `GET/PUT /api/hongguo/history` 只保留最多40部剧的观看元数据（剧名、分集、时间位置、画质），原子写入 `HONGGUO_STATE_DIR/history.json`；默认是服务工作目录下的 `data/`，该目录禁止公开发布或提交。乱序到达的旧进度不覆盖新进度。重启前保留这个目录。
 
