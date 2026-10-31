@@ -1,0 +1,10 @@
+import {createServer} from 'node:http';
+import {createClient,memoryProfileStore} from 'openhongguo';
+import {createApp} from './server.mjs';
+import {createHistoryStore} from './history.mjs';
+import {resolve} from 'node:path';
+const client=await createClient({profile:memoryProfileStore(),timeoutMs:12000,retryAttempts:1});
+const app=createApp({client,history:createHistoryStore(resolve(process.env.HONGGUO_STATE_DIR??'data')),username:process.env.WB_PERSONAL_USER,password:process.env.WB_PERSONAL_PASSWORD,secure:process.env.HONGGUO_LOCAL_HTTP!=='1',allowedOrigin:process.env.HONGGUO_ORIGIN??'https://plan.xiaoliang.tech',diagnostic:value=>console.error(JSON.stringify(value))});
+const server=createServer(app);server.requestTimeout=30000;server.headersTimeout=10000;server.maxHeadersCount=40;
+server.listen(Number(process.env.HONGGUO_PORT??8014),'127.0.0.1',()=>console.log('Private Hongguo HTTP service ready on loopback'));
+for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{app.dispose();server.close();server.closeAllConnections();});
